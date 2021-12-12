@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Element;
@@ -120,11 +121,17 @@ class RLoader {
 					.ignoreContentType(true).post().select("body").text().toString();
 
 			JSONObject json = new JSONObject(doc);
-			JSONArray array = json.getJSONArray("manga");
+			JSONArray array = null;
+			try {
+				array = json.getJSONArray("manga");
+			} catch(JSONException e) { return mangaList; }
 
 			for (int i = 0; i < array.length(); i++) {
 				JSONObject obj = array.getJSONObject(i);
 				String title = null, url = null, art = null;
+				ArrayList<String> tokens = new ArrayList<>();
+
+				//System.out.println(obj.toString());
 
 				if (obj.has("title"))
 					title = obj.getString("title");
@@ -135,12 +142,40 @@ class RLoader {
 				if (obj.has("image"))
 					art = obj.getString("image");
 
-				Manga m = new Manga(title, url, null, "0", art, null);
+				if(obj.has("tokens")) {
+					JSONArray tokensArr = obj.getJSONArray("tokens");
+					for(int j=0; j<tokensArr.length(); j++) tokens.add(tokensArr.getString(j));
+				}
+
+				Manga m = new Manga(title, url, "summary", "0", art, tokens);
 				mangaList.add(m);
 			}
 
 		} catch (Exception e) {
 			e.printStackTrace();
+		}
+
+		for(Manga manga : mangaList) {
+			List<Chapter> chapterList = new ArrayList<>();
+			String author = null, status = null, summary = null, rating = null;
+			int chapterCount = 0;
+			try {
+				Element doc = Jsoup.connect(RApiBuilder.buildCombo(manga.url)).userAgent(RConstants.USER_AGENT).get()
+						.body();
+				author = doc.select("div[class=first_and_last]").text();
+				status = doc.select("span[class=series-status aqua]").text();
+				chapterCount = doc.select("section[class=episodes-box]").select("table[class=ui basic unstackable table]").size();
+				summary = doc.select("div[class=series-summary-wrapper]").text();
+				rating = doc.select("div[class=color-imdb]").text();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+
+			manga.author = author;
+			manga.status = status;
+			manga.chapter = Integer.toString(chapterCount);
+			manga.summary = summary;
+			manga.rating = rating;
 		}
 
 		return mangaList;
