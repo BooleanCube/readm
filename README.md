@@ -1,6 +1,9 @@
 # readm.org api
 Java api for readm.org, includes web scraping, uses jsoup
 
+An example of a project that uses this api:
+https://github.com/BooleanCube/lollipop-bot
+
 ## Usage
 1. Declare a client object, attach RListener
 
